@@ -1,180 +1,48 @@
 # News Classification Project
 
-## Description
+A Python learning project for exploring news classification with TF-IDF features and scikit-learn models: Logistic Regression, Support Vector Classifier, and Random Forest.
 
-This project aims to classify news articles as "Real news" or "Fake news" using various machine learning models. It involves data preprocessing, feature extraction, and model evaluation using libraries such as pandas, numpy, sklearn, nltk, and tkinter.
+## Current status
 
-## Features
+The script and the previous documentation have diverged. This repository is an experiment that needs corrections before its evaluation results can be relied on:
 
-- Data loading through a Tkinter file dialog.
-- Data preprocessing including text cleaning, tokenization, and stemming/lemmatization.
-- Feature extraction using TF-IDF and additional textual features.
-- Model training and evaluation using Logistic Regression, Support Vector Classifier, and Random Forest Classifier.
-- Confusion matrix visualization using seaborn.
-- Saving the best model using pickle.
+- `main.py` creates a `label` column, but selects `data['News']` as the target. Inputs without a `News` column will fail at that point.
+- The binary precision, recall, and F1 calls use their default positive-label setting; this needs to match the actual target encoding.
+- TF-IDF is fitted before the train/test split, allowing information from the test set into the feature vocabulary.
+- The Random Forest is saved unconditionally as `best_model.pkl`; the script does not select the best model by comparing scores, and it does not save the fitted vectorizer with the model.
 
-## Installation
+These are documented limitations, not fixes. Predictions from this experiment should not be treated as fact verification.
 
-1. **Python 3**: Ensure you have Python 3 installed on your system.
-2. **Install required libraries**:
-   ```sh
-   pip install pandas numpy matplotlib seaborn scikit-learn nltk contractions pickle-mixin
-   ```
+## Environment
 
-## How to Run
+Use Python 3 with Tkinter and a graphical desktop for file selection and plots.
 
-1. **Clone the repository** (if applicable):
-   ```sh
-   git clone <repository-url>
-   cd <repository-directory>
-   ```
+```bash
+python -m pip install pandas numpy matplotlib seaborn scikit-learn nltk contractions
+```
 
-2. **Run the script**:
-   ```sh
-   python news_classification.py
-   ```
+`pickle` is part of Python's standard library; it does not need a separate package.
 
-3. **Select the True News and Fake News CSV files** when prompted.
+The text-processing code uses NLTK's English stopwords, word tokenizer, and WordNet resources. Install the resources requested by NLTK if a lookup error occurs; tokenizer resource names can depend on the NLTK version.
 
-## Code Overview
+## Entry point and data
 
-- **Library Imports**:
-  ```python
-  import pandas as pd
-  import numpy as np
-  import matplotlib.pyplot as plt
-  import seaborn as sns
-  from sklearn.model_selection import train_test_split
-  from sklearn.feature_extraction.text import TfidfVectorizer
-  from sklearn.linear_model import LogisticRegression
-  from sklearn.svm import SVC
-  from sklearn.ensemble import RandomForestClassifier
-  from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
-  import tkinter as tk
-  from tkinter import filedialog
-  import re
-  from nltk.corpus import stopwords
-  from nltk.tokenize import word_tokenize
-  from nltk.stem import WordNetLemmatizer, PorterStemmer
-  import contractions
-  import pickle
-  ```
+```bash
+git clone https://github.com/Joyson01/Fake-News-Detection.git
+cd Fake-News-Detection
+python main.py
+```
 
-- **File Selection**:
-  ```python
-  def select_file(title):
-      root = tk.Tk()
-      root.withdraw()
-      file_path = filedialog.askopenfilename(title=title, filetypes=(("CSV files", "*.csv"), ("All files", "*.*")))
-      return file_path
-  ```
+The script first asks for the true-news CSV, then the fake-news CSV. It reads `title` and `text` fields; the target-column inconsistency above must be resolved for a complete run. Close each plot window to let the script continue.
 
-- **Data Loading and Preprocessing**:
-  ```python
-  true_news_path = select_file('Select the True News CSV File')
-  fake_news_path = select_file('Select the Fake News CSV File')
-  true_news = pd.read_csv(true_news_path)
-  fake_news = pd.read_csv(fake_news_path)
-  true_news['label'] = "Real news"
-  fake_news['label'] = "Fake news"
-  data = pd.concat([true_news, fake_news]).reset_index(drop=True)
-  data = data.sample(frac=1).reset_index(drop=True)
-  data.dropna(subset=['title', 'text'], inplace=True)
-  ```
+| Path | Purpose |
+| --- | --- |
+| [main.py](main.py) | Preprocessing, feature extraction, training, evaluation, and model serialization |
+| `Data/` | CSV files for the experiment |
+| `best_model.pkl` | Output written by a completed run; not a complete inference pipeline |
 
-- **Text Preprocessing**:
-  ```python
-  def preprocess_text(text):
-      text = contractions.fix(text)
-      text = re.sub(r'\W', ' ', text)
-      text = text.lower()
-      tokens = word_tokenize(text)
-      tokens = [word for word in tokens if word not in stopwords.words('english')]
-      lemmatizer = WordNetLemmatizer()
-      stemmer = PorterStemmer()
-      tokens = [lemmatizer.lemmatize(word) for word in tokens]
-      tokens = [stemmer.stem(word) for word in tokens]
-      return ' '.join(tokens)
-  data['text'] = data['title'] + ' ' + data['text']
-  data['text'] = data['text'].apply(preprocess_text)
-  ```
+## Author and acknowledgments
 
-- **Feature Extraction**:
-  ```python
-  tfidf_vectorizer = TfidfVectorizer(max_features=5000)
-  X_text = tfidf_vectorizer.fit_transform(data['text']).toarray()
-  data['title_length'] = data['title'].apply(len)
-  data['text_length'] = data['text'].apply(len)
-  data['word_count'] = data['text'].apply(lambda x: len(x.split()))
-  data['punctuation_count'] = data['text'].apply(lambda x: len(re.findall(r'[^\w\s]', x)))
-  X_additional_features = data[['title_length', 'text_length', 'word_count', 'punctuation_count']].values
-  X_combined = np.hstack((X_text, X_additional_features))
-  y = data['label']
-  X_train, X_test, y_train, y_test = train_test_split(X_combined, y, test_size=0.2, random_state=42)
-  ```
+**Joyson Vadlya**
 
-- **Model Training and Evaluation**:
-  ```python
-  def evaluate_model(model, X_train, X_test, y_train, y_test):
-      model.fit(X_train, y_train)
-      y_pred = model.predict(X_test)
-      accuracy = accuracy_score(y_test, y_pred)
-      precision = precision_score(y_test, y_pred, pos_label="Real news")
-      recall = recall_score(y_test, y_pred, pos_label="Real news")
-      f1 = f1_score(y_test, y_pred, pos_label="Real news")
-      print(f'Accuracy: {accuracy}')
-      print(f'Precision: {precision}')
-      print(f'Recall: {recall}')
-      print(f'F1 Score: {f1}')
-      cm = confusion_matrix(y_test, y_pred)
-      sns.heatmap(cm, annot=True, fmt='d')
-      plt.title('Confusion Matrix')
-      plt.show()
-      return model
-
-  print("Logistic Regression:")
-  lr_model = LogisticRegression(max_iter=1000)
-  lr_model = evaluate_model(lr_model, X_train, X_test, y_train, y_test)
-
-  print("Support Vector Classifier:")
-  svc_model = SVC(kernel='linear')
-  svc_model = evaluate_model(svc_model, X_train, X_test, y_train, y_test)
-
-  print("Random Forest Classifier:")
-  rf_model = RandomForestClassifier(n_estimators=100)
-  rf_model = evaluate_model(rf_model, X_train, X_test, y_train, y_test)
-  ```
-
-- **Save and Load Model**:
-  ```python
-  best_model = rf_model
-  with open('best_model.pkl', 'wb') as f:
-      pickle.dump(best_model, f)
-  print("Model saved as 'best_model.pkl'")
-
-  with open('best_model.pkl', 'rb') as f:
-      loaded_model = pickle.load(f)
-  y_pred_loaded = loaded_model.predict(X_test)
-  print(f'Loaded model accuracy: {accuracy_score(y_test, y_pred_loaded)}')
-  ```
-
-## Libraries Used
-
-- pandas
-- numpy
-- matplotlib
-- seaborn
-- scikit-learn
-- nltk
-- contractions
-- tkinter
-- pickle
-
-## Authors
-
-- **Joyson Vadlya**
-
-
-## Acknowledgments
-
-- Inspiration from various online tutorials and machine learning resources.
+Inspired by online tutorials and machine-learning resources.
